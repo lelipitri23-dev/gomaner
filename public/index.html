@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doujindesu PDF - Download Manga</title>
+    <title>Doujindesu - Downloader Manga PDF</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -11,72 +11,80 @@
         body { font-family: 'Outfit', sans-serif; background-color: #0f0f11; }
         .loader { border-top-color: #e50914; animation: spinner 1s linear infinite; }
         @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        /* Glassmorphism */
-        .glass { background: rgba(30, 30, 35, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-        
-        /* Custom Scrollbar */
+        .glass { background: rgba(24, 24, 27, 0.8); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
         ::-webkit-scrollbar-track { background: #0f0f11; }
-
         .btn-primary { background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); transition: all 0.3s ease; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4); }
     </style>
 </head>
 <body class="text-gray-200 min-h-screen flex flex-col">
 
-    <nav class="glass border-b border-white/5 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer group" onclick="location.reload()">
-                <div class="bg-red-600 text-white w-10 h-10 flex items-center justify-center rounded-lg font-bold text-xl shadow-lg group-hover:rotate-6 transition">D</div>
+    <nav class="glass border-b border-white/5 sticky top-0 z-50 transition-all duration-300">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer group z-50" onclick="location.reload()">
+                <div class="bg-red-600 text-white w-9 h-9 flex items-center justify-center rounded-lg font-bold text-lg shadow-lg group-hover:rotate-6 transition">D</div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-tight text-white">DOUJINDESU <span class="text-red-500">PDF</span></h1>
-                    <p class="text-[10px] text-gray-400 -mt-1 tracking-widest uppercase">Premium Downloader</p>
+                    <h1 class="text-lg font-bold tracking-tight text-white leading-none">DOUJINDESU <span class="text-red-500">PDF</span></h1>
                 </div>
             </div>
             
-            <div id="userSection" class="flex items-center gap-4">
-                <div class="animate-pulse w-24 h-8 bg-gray-800 rounded"></div>
+            <button id="mobileMenuBtn" class="md:hidden text-white text-2xl z-50 focus:outline-none">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <div id="navMenu" class="fixed inset-0 bg-black/95 flex-col items-center justify-center gap-6 hidden md:static md:flex md:flex-row md:bg-transparent md:inset-auto md:h-auto md:w-auto md:gap-4 transition-all">
+                <div id="userSection" class="flex flex-col md:flex-row items-center gap-4 md:gap-4 w-full md:w-auto px-6 md:px-0">
+                    <div class="animate-pulse w-24 h-8 bg-gray-800 rounded"></div>
+                </div>
             </div>
         </div>
     </nav>
 
     <main class="container mx-auto px-4 py-8 flex-grow">
-        <div class="max-w-3xl mx-auto mb-16 text-center mt-6">
-            <h2 class="text-4xl md:text-5xl font-extrabold mb-8 text-white">Cari, Klik, <span class="text-red-500">Simpan.</span></h2>
-            <div class="relative group">
+        
+        <div class="max-w-2xl mx-auto mb-10 text-center mt-4">
+            <h2 class="text-3xl md:text-4xl font-extrabold mb-6 text-white">Cari, Klik, <span class="text-red-500">Simpan.</span></h2>
+            <div class="relative group mx-auto w-full md:w-10/12">
                 <input type="text" id="searchInput" 
-                    class="w-full bg-[#18181b] border border-gray-700 text-white pl-14 pr-32 py-5 rounded-2xl focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none transition shadow-2xl text-lg placeholder-gray-500"
-                    placeholder="Judul manga (misal: Naruto, One Piece)...">
-                <i class="fas fa-search absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 text-xl group-focus-within:text-red-500 transition"></i>
-                <button id="btnSearch" class="absolute right-2 top-2 bottom-2 btn-primary text-white px-8 rounded-xl font-bold tracking-wide">
+                    class="w-full bg-[#18181b] border border-gray-700 text-white pl-12 pr-28 py-3 rounded-full focus:border-red-500 focus:ring-1 focus:ring-red-500 focus:outline-none transition shadow-xl text-base placeholder-gray-500"
+                    placeholder="Judul manga...">
+                <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-gray-500 text-sm group-focus-within:text-red-500 transition"></i>
+                <button id="btnSearch" class="absolute right-1.5 top-1.5 bottom-1.5 btn-primary text-white px-5 rounded-full font-bold text-xs tracking-wide uppercase">
                     CARI
                 </button>
             </div>
         </div>
 
         <div id="contentArea" class="min-h-[400px]">
-            <div class="flex flex-col items-center justify-center h-64 text-gray-600 gap-4">
-                <i class="fas fa-ghost text-6xl opacity-20"></i>
-                <p>Silakan cari manga untuk memulai.</p>
+            <div id="defaultHome" class="animate-fade-in">
+                <div class="flex items-center gap-3 mb-6 border-b border-gray-800 pb-3">
+                    <i class="fas fa-fire text-red-500 text-xl"></i>
+                    <h3 class="text-xl font-bold text-white">Paling Banyak Didownload</h3>
+                </div>
+                
+                <div id="topList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <div class="h-48 bg-gray-800 rounded-xl animate-pulse"></div>
+                    <div class="h-48 bg-gray-800 rounded-xl animate-pulse"></div>
+                    <div class="h-48 bg-gray-800 rounded-xl animate-pulse"></div>
+                </div>
             </div>
         </div>
     </main>
 
     <footer class="border-t border-white/5 py-8 mt-12 bg-[#0a0a0c]">
         <div class="container mx-auto px-4 text-center">
-            <p class="text-gray-500 text-sm">&copy; 2026 Doujindesu PDF. Created for Fans.</p>
+            <p class="text-gray-500 text-sm">&copy; 2026 Doujindesu PDF.</p>
         </div>
     </footer>
 
-    <div id="loadingOverlay" class="fixed inset-0 bg-[#0f0f11]/90 backdrop-blur-sm hidden flex flex-col items-center justify-center z-[60]">
-        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-16 w-16 mb-6"></div>
-        <h3 class="text-2xl font-bold text-white tracking-wide">Memproses...</h3>
-        <p id="loadingText" class="text-gray-400 mt-2">Mohon tunggu sebentar.</p>
+    <div id="loadingOverlay" class="fixed inset-0 bg-[#0f0f11]/90 backdrop-blur-sm hidden flex flex-col items-center justify-center z-[70]">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-12 w-12 mb-4"></div>
+        <p id="loadingText" class="text-gray-300 font-medium text-sm tracking-wide">Memproses...</p>
     </div>
 
-    <div id="toast" class="fixed bottom-8 right-8 translate-y-32 opacity-0 transition-all duration-500 z-[70] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-gray-800 border border-gray-700">
+    <div id="toast" class="fixed bottom-8 right-8 translate-y-32 opacity-0 transition-all duration-500 z-[80] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-gray-800 border border-gray-700">
         <i id="toastIcon" class="fas fa-info-circle text-xl"></i>
         <span id="toastMessage" class="font-medium text-sm">Notifikasi</span>
     </div>
@@ -85,7 +93,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // CONFIG FIREBASE (GANTI DENGAN MILIKMU)
+        // FIREBASE CONFIG (Tetap sama)
         const firebaseConfig = {
             apiKey: "AIzaSyAjcrntHoKmkdAsZr3ffcLqS1NL2lRN8Y8",
             authDomain: "doujindesuapk.firebaseapp.com",
@@ -101,30 +109,83 @@
         let currentUserToken = null;
         const trakteerLink = "https://trakteer.id/kamisekai/tip?quantity=1";
 
+        // --- MOBILE MENU LOGIC ---
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const navMenu = document.getElementById('navMenu');
+        
+        mobileMenuBtn.addEventListener('click', () => {
+            const isHidden = navMenu.classList.contains('hidden');
+            if(isHidden) {
+                navMenu.classList.remove('hidden', 'opacity-0');
+                navMenu.classList.add('flex', 'opacity-100');
+                mobileMenuBtn.innerHTML = '<i class="fas fa-times"></i>'; // Change icon to X
+            } else {
+                navMenu.classList.add('hidden', 'opacity-0');
+                navMenu.classList.remove('flex', 'opacity-100');
+                mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>'; // Back to bars
+            }
+        });
+
+        // --- TOP DOWNLOADS LOGIC ---
+        async function loadTopDownloads() {
+            const container = document.getElementById('topList');
+            if(!container) return;
+
+            try {
+                const res = await fetch('/api/top-downloads');
+                const { data } = await res.json();
+
+                if(!data || data.length === 0) {
+                    container.innerHTML = `<p class="text-gray-500 col-span-full text-center text-sm">Belum ada data download.</p>`;
+                    return;
+                }
+
+                container.innerHTML = data.map(m => `
+                    <div class="bg-[#18181b] rounded-lg overflow-hidden border border-gray-800 hover:border-red-500/50 hover:-translate-y-1 transition duration-300 group shadow-md cursor-pointer" onclick="viewManga('${m.slug}')">
+                        <div class="relative aspect-[2/3] overflow-hidden">
+                            <img src="${m.thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 p-2 pt-8">
+                                <p class="text-[10px] text-gray-300 flex items-center gap-1">
+                                    <i class="fas fa-download text-red-500"></i> ${m.downloads || 0}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <h3 class="font-bold text-gray-200 truncate text-xs" title="${m.title}">${m.title}</h3>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                container.innerHTML = `<p class="text-red-500 col-span-full text-xs">Gagal memuat list.</p>`;
+            }
+        }
+
+        // Initialize Top Downloads on Load
+        document.addEventListener('DOMContentLoaded', loadTopDownloads);
+
+        // --- AUTH & STATS ---
         const userSection = document.getElementById('userSection');
 
-        // --- STATS DISPLAY ---
         async function updateStatsDisplay() {
             try {
                 const headers = currentUserToken ? { 'Authorization': `Bearer ${currentUserToken}` } : {};
                 const res = await fetch('/api/stats', { headers });
                 const data = await res.json();
-
-                let width = "0%", color = "bg-blue-600", label = "";
-                if (data.type === 'premium') {
-                    width = "100%"; color = "bg-yellow-500"; label = "PREMIUM";
-                } else {
-                    const pct = Math.min((data.usage / data.limit) * 100, 100);
-                    width = `${pct}%`;
-                    color = pct >= 100 ? "bg-red-600" : "bg-blue-600";
-                    label = `${data.type === 'guest' ? 'GUEST' : 'FREE'}: ${data.usage}/${data.limit}`;
-                }
+                
+                // Simplified bar for cleaner look
+                const pct = data.type === 'premium' ? 100 : Math.min((data.usage / data.limit) * 100, 100);
+                const color = data.type === 'premium' ? 'bg-yellow-500' : (pct >= 100 ? 'bg-red-600' : 'bg-blue-600');
+                const label = data.type === 'premium' ? 'PREMIUM' : `${data.usage}/${data.limit}`;
 
                 return `
-                    <div class="flex flex-col items-end mr-2">
-                        <span class="text-[10px] text-gray-400 font-bold tracking-wider mb-1">${label}</span>
-                        <div class="w-32 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                            <div class="${color} h-full shadow-[0_0_10px_currentColor] transition-all duration-700" style="width: ${width}"></div>
+                    <div class="flex flex-col items-end w-full md:w-auto">
+                        <div class="flex justify-between w-full md:w-32 mb-1">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">${data.type}</span>
+                            <span class="text-[10px] text-gray-300 font-mono">${label}</span>
+                        </div>
+                        <div class="w-full md:w-32 h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div class="${color} h-full transition-all duration-700" style="width: ${pct}%"></div>
                         </div>
                     </div>
                 `;
@@ -145,10 +206,10 @@
                 currentUserToken = await user.getIdToken();
                 userSection.innerHTML = `
                     ${statsHtml}
-                    <div class="flex items-center gap-3 bg-gray-800/80 pl-4 pr-1 py-1 rounded-full border border-gray-700">
-                        <div class="text-right hidden md:block leading-none">
+                    <div class="flex items-center gap-3 bg-gray-800/80 pl-4 pr-1 py-1 rounded-full border border-gray-700 mt-2 md:mt-0">
+                        <div class="text-right leading-none">
                             <p class="text-xs font-bold text-white mb-0.5">${user.displayName.split(' ')[0]}</p>
-                            <a href="${trakteerLink}" target="_blank" class="text-[9px] text-yellow-500 hover:text-yellow-400 font-bold uppercase tracking-wide">Upgrade Premium</a>
+                            <a href="${trakteerLink}" target="_blank" class="text-[9px] text-yellow-500 font-bold uppercase">UPGRADE</a>
                         </div>
                         <img src="${user.photoURL}" class="w-8 h-8 rounded-full border border-gray-600">
                         <button id="btnLogout" class="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-red-600 rounded-full transition text-xs text-white"><i class="fas fa-power-off"></i></button>
@@ -159,42 +220,49 @@
                 currentUserToken = null;
                 userSection.innerHTML = `
                     ${statsHtml}
-                    <button id="btnLogin" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
-                        <i class="fab fa-google"></i> <span class="hidden md:inline">Login</span>
+                    <button id="btnLogin" class="bg-white text-black hover:bg-gray-200 w-full md:w-auto mt-2 md:mt-0 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex justify-center items-center gap-2">
+                        <i class="fab fa-google"></i> <span>Login</span>
                     </button>
                 `;
                 setupLoginButton();
             }
         });
 
-        // --- CORE LOGIC ---
+        // --- CORE FUNCTIONS (SEARCH & VIEW) ---
         const contentArea = document.getElementById('contentArea');
         const searchInput = document.getElementById('searchInput');
 
         window.searchManga = async () => {
             const q = searchInput.value.trim();
-            if(!q) return showToast("Masukkan judul manga!", "error");
+            if(!q) {
+                // Jika kosong, kembalikan ke Home default
+                location.reload(); 
+                return;
+            }
             
-            showLoading(true, "Mencari manga...");
+            showLoading(true, "Mencari...");
             try {
                 const res = await fetch(`/api/search?q=${q}`);
                 const { data } = await res.json();
                 
                 if(data && data.length > 0) {
                     contentArea.innerHTML = `
-                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6 animate-fade-in">
+                        <div class="flex items-center gap-3 mb-6">
+                            <i class="fas fa-search text-gray-400"></i>
+                            <h3 class="text-xl font-bold text-white">Hasil: "${q}"</h3>
+                        </div>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 animate-fade-in">
                             ${data.map(m => `
                                 <div class="bg-[#18181b] rounded-xl overflow-hidden border border-gray-800 hover:border-red-500/50 hover:-translate-y-2 transition duration-300 group shadow-lg">
                                     <div class="relative aspect-[2/3] overflow-hidden">
                                         <img src="${m.thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-700">
-                                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent opacity-80"></div>
                                         <div class="absolute bottom-3 left-3 right-3">
-                                            <span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-bold uppercase tracking-wider">${m.chapter_count || '?'} CH</span>
+                                            <span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-bold uppercase shadow">${m.chapter_count || '?'} CH</span>
                                         </div>
                                     </div>
-                                    <div class="p-4">
-                                        <h3 class="font-bold text-gray-100 truncate text-sm mb-3" title="${m.title}">${m.title}</h3>
-                                        <button onclick="viewManga('${m.slug}')" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-2 rounded-lg text-xs font-bold transition border border-gray-700">Lihat Chapter</button>
+                                    <div class="p-3">
+                                        <h3 class="font-bold text-gray-100 truncate text-xs mb-2" title="${m.title}">${m.title}</h3>
+                                        <button onclick="viewManga('${m.slug}')" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-1.5 rounded text-[10px] font-bold transition border border-gray-700">LIHAT</button>
                                     </div>
                                 </div>
                             `).join('')}
@@ -215,28 +283,32 @@
 
                 const { info, chapters } = data;
                 contentArea.innerHTML = `
-                    <div class="bg-[#18181b] rounded-2xl p-6 md:p-8 border border-gray-800 shadow-2xl">
-                        <button onclick="location.reload()" class="mb-8 text-gray-400 hover:text-white flex items-center gap-2 text-sm font-bold tracking-wide transition"><i class="fas fa-arrow-left"></i> KEMBALI</button>
+                    <div class="bg-[#18181b] rounded-2xl p-5 md:p-8 border border-gray-800 shadow-2xl animate-fade-in">
+                        <button onclick="location.reload()" class="mb-6 text-gray-400 hover:text-white flex items-center gap-2 text-xs font-bold uppercase tracking-wide transition"><i class="fas fa-arrow-left"></i> Kembali</button>
                         
-                        <div class="flex flex-col md:flex-row gap-10">
-                            <div class="md:w-64 flex-shrink-0 mx-auto md:mx-0">
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <div class="w-48 mx-auto md:mx-0 flex-shrink-0">
                                 <img src="${info.thumb}" class="w-full rounded-lg shadow-2xl border border-gray-700">
+                                <div class="mt-4 text-center">
+                                     <span class="text-xs text-gray-500"><i class="fas fa-eye"></i> ${info.views || 0} Views</span>
+                                     <span class="text-xs text-gray-500 ml-3"><i class="fas fa-download"></i> ${info.downloads || 0} DL</span>
+                                </div>
                             </div>
                             <div class="flex-1">
-                                <h1 class="text-3xl md:text-4xl font-extrabold text-white mb-4 leading-tight">${info.title}</h1>
-                                <p class="text-gray-400 text-sm leading-relaxed mb-8 border-l-2 border-red-600 pl-4">${info.metadata?.synopsis || 'Sinopsis belum tersedia.'}</p>
+                                <h1 class="text-2xl md:text-3xl font-extrabold text-white mb-4 leading-tight">${info.title}</h1>
+                                <p class="text-gray-400 text-xs md:text-sm leading-relaxed mb-8 border-l-2 border-red-600 pl-4">${info.metadata?.synopsis || 'Sinopsis belum tersedia.'}</p>
                                 
-                                <div class="flex items-center justify-between border-b border-gray-800 pb-4 mb-6">
-                                    <h3 class="font-bold text-white text-lg flex items-center gap-2"><i class="fas fa-layer-group text-red-500"></i> Chapter List</h3>
-                                    <span class="bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full border border-gray-700">${chapters.length} Items</span>
+                                <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-4">
+                                    <h3 class="font-bold text-white text-sm flex items-center gap-2"><i class="fas fa-layer-group text-red-500"></i> Chapter List</h3>
+                                    <span class="bg-gray-800 text-gray-300 text-[10px] px-2 py-0.5 rounded border border-gray-700">${chapters.length}</span>
                                 </div>
 
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                                     ${chapters.map(ch => `
-                                        <div class="bg-[#202024] hover:bg-[#27272a] p-3 rounded-lg flex justify-between items-center group transition border border-gray-800 hover:border-gray-600">
-                                            <span class="text-sm font-mono text-gray-400 group-hover:text-white transition">Ch. ${ch.chapter_index}</span>
-                                            <button onclick="handleDownload('${info.slug}', '${ch.slug}', ${ch.chapter_index})" 
-                                                class="bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white px-4 py-1.5 rounded text-xs font-bold transition flex items-center gap-2">
+                                        <div class="bg-[#202024] hover:bg-[#27272a] p-2.5 rounded flex justify-between items-center group transition border border-gray-800 hover:border-gray-600">
+                                            <span class="text-xs font-mono text-gray-400 group-hover:text-white transition">Ch. ${ch.chapter_index}</span>
+                                            <button onclick="handleDownload('${info.slug}', '${ch.slug}', ${ch.chapter_index}')" 
+                                                class="bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white px-3 py-1 rounded-[4px] text-[10px] font-bold transition flex items-center gap-1">
                                                 <i class="fas fa-download"></i> PDF
                                             </button>
                                         </div>
@@ -250,25 +322,21 @@
         };
 
         window.handleDownload = async (slug, chSlug, idx) => {
-            console.log("Tombol diklik:", slug, chSlug); // Debugging
-            if(!confirm(`Download Chapter ${idx} sebagai PDF?`)) return;
-            
-            showLoading(true, `Sedang membuat PDF Chapter ${idx}...`);
+            if(!confirm(`Download Chapter ${idx}?`)) return;
+            showLoading(true, `Generate PDF Ch.${idx}...`);
 
             try {
                 const headers = currentUserToken ? { 'Authorization': `Bearer ${currentUserToken}` } : {};
                 const res = await fetch(`/api/download/${slug}/${chSlug}`, { headers });
 
-                // Cek status error (Limit Habis)
                 if(res.status === 403) {
                     const d = await res.json();
                     showLoading(false);
                     return showToast(d.message, "error");
                 }
 
-                if(!res.ok) throw new Error("Gagal mengambil data dari server");
+                if(!res.ok) throw new Error("Gagal mengambil data");
 
-                // Proses Blob
                 const blob = await res.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -277,32 +345,28 @@
                 document.body.appendChild(a);
                 a.click(); 
                 a.remove();
-                window.URL.revokeObjectURL(url);
                 
                 showToast("Download Berhasil!", "success");
 
-                // Update Stats tanpa refresh
+                // Update UI Stats & Views tanpa refresh
                 const authUser = auth.currentUser;
                 if(authUser) { auth.updateCurrentUser(authUser); } 
                 else {
                     const statsHtml = await updateStatsDisplay();
                     userSection.innerHTML = `
                         ${statsHtml}
-                        <button id="btnLogin" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
-                            <i class="fab fa-google"></i> <span class="hidden md:inline">Login</span>
+                        <button id="btnLogin" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex justify-center items-center gap-2">
+                            <i class="fab fa-google"></i> <span>Login</span>
                         </button>
                     `;
                     setupLoginButton();
                 }
 
-            } catch(e) { 
-                console.error(e);
-                showToast("Gagal download. Coba lagi nanti.", "error"); 
-            }
+            } catch(e) { showToast("Gagal download. Coba lagi.", "error"); }
             finally { showLoading(false); }
         };
 
-        // --- UTILS ---
+        // HELPER UTILS (Sama)
         function showLoading(show, msg) {
             const el = document.getElementById('loadingOverlay');
             if(show) { document.getElementById('loadingText').innerText = msg; el.classList.remove('hidden'); }
@@ -313,18 +377,15 @@
             const el = document.getElementById('toast');
             const icon = document.getElementById('toastIcon');
             const txt = document.getElementById('toastMessage');
-            
             const colors = type === 'error' ? 'text-red-400 border-red-500/50' : 'text-green-400 border-green-500/50';
-            el.className = `fixed bottom-8 right-8 z-[70] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-[#18181b] border transition-all duration-300 ${colors}`;
-            
+            el.className = `fixed bottom-8 right-8 z-[80] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-[#18181b] border transition-all duration-300 ${colors}`;
             icon.className = type === 'error' ? 'fas fa-times-circle text-red-500 text-xl' : 'fas fa-check-circle text-green-500 text-xl';
             txt.innerText = msg;
-
             el.classList.remove('translate-y-32', 'opacity-0');
             setTimeout(() => el.classList.add('translate-y-32', 'opacity-0'), 3000);
         }
 
-        // INIT LISTENERS
+        // LISTENERS
         document.getElementById('btnSearch').onclick = window.searchManga;
         document.getElementById('searchInput').onkeypress = (e) => e.key === 'Enter' && window.searchManga();
     </script>

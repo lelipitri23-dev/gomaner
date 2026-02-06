@@ -32,6 +32,7 @@ const getPaginationParams = (req, defaultLimit = 24) => {
     return { page, limit, skip };
 };
 
+// Fungsi bantu hitung chapter
 async function attachChapterCounts(mangas) {
     if (!mangas || mangas.length === 0) return [];
     const mangaIds = mangas.map(m => m._id);
@@ -67,7 +68,6 @@ const checkDownloadLimit = async (req, res, next) => {
         req.clientIp = ip;
         next();
     } catch (err) {
-        console.error("Limit Check Error:", err);
         res.status(500).json({ success: false, message: "Server Error" });
     }
 };
@@ -91,27 +91,22 @@ router.get('/stats', async (req, res) => {
     } catch (err) { return res.json({ type: 'guest', usage: 0, limit: LIMIT_GUEST_IP }); }
 });
 
-router.get('/home', async (req, res) => {
+// Endpoint Baru: Top Downloads
+router.get('/top-downloads', async (req, res) => {
     try {
-        const { page, limit, skip } = getPaginationParams(req);
-        const totalManga = await Manga.countDocuments();
-        
-        const [recentsRaw, trendingRaw, manhwasRaw] = await Promise.all([
-            Manga.find().select('title slug thumb metadata createdAt').sort({ updatedAt: -1 }).skip(skip).limit(limit).lean(),
-            Manga.find().select('title slug thumb views metadata').sort({ views: -1 }).limit(10).lean(),
-            Manga.find({ 'metadata.type': { $regex: 'manhwa', $options: 'i' } }).select('title slug thumb metadata').sort({ updatedAt: -1 }).limit(10).lean()
-        ]);
+        // Mengambil 6 manga dengan jumlah download terbanyak (field: downloads)
+        // Jika field 'downloads' belum ada di database, otomatis dianggap 0
+        const mangasRaw = await Manga.find()
+            .sort({ downloads: -1, views: -1 }) // Sort by download, lalu views
+            .limit(6)
+            .select('title slug thumb downloads')
+            .lean();
 
-        const [recents, trending, manhwas] = await Promise.all([
-            attachChapterCounts(recentsRaw),
-            attachChapterCounts(trendingRaw),
-            attachChapterCounts(manhwasRaw)
-        ]);
-
-        successResponse(res, { recents, trending, manhwas }, {
-            currentPage: page, totalPages: Math.ceil(totalManga / limit), totalItems: totalManga, perPage: limit
-        });
-    } catch (err) { errorResponse(res, err.message); }
+        const mangas = await attachChapterCounts(mangasRaw);
+        successResponse(res, mangas);
+    } catch (err) {
+        errorResponse(res, err.message);
+    }
 });
 
 router.get('/manga/:slug', async (req, res) => {
@@ -135,7 +130,7 @@ router.get('/search', async (req, res) => {
     } catch (err) { errorResponse(res, err.message); }
 });
 
-// DOWNLOAD ENDPOINT (FIXED)
+// DOWNLOAD ENDPOINT
 router.get('/download/:slug/:chapterSlug', checkDownloadLimit, async (req, res) => {
     try {
         const { slug, chapterSlug } = req.params;
@@ -147,48 +142,44 @@ router.get('/download/:slug/:chapterSlug', checkDownloadLimit, async (req, res) 
 
         const cleanTitle = manga.title.replace(/[^a-zA-Z0-9]/g, '-');
         
-        // Pastikan header terkirim sebelum proses berat dimulai
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${cleanTitle}-Ch${chapter.chapter_index}.pdf"`);
 
         const doc = new PDFDocument({ autoFirstPage: false });
         doc.pipe(res);
 
-        // Loop Images dengan Error Handling per-image
         for (const url of chapter.images) {
             try {
                 const response = await axios.get(url, { 
                     responseType: 'arraybuffer', 
-                    headers: { 
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                        'Referer': 'https://doujindesu.tv/' 
-                    },
-                    timeout: 8000 // 8 detik timeout per gambar agar tidak hang
+                    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://doujindesu.tv/' },
+                    timeout: 8000 
                 });
-                const imgBuffer = await sharp(response.data).jpeg({ quality: 70 }).toBuffer(); // Kompresi 70% biar cepat
+                const imgBuffer = await sharp(response.data).jpeg({ quality: 70 }).toBuffer();
                 const img = doc.openImage(imgBuffer);
                 doc.addPage({ size: [img.width, img.height] });
                 doc.image(img, 0, 0);
-            } catch (e) { 
-                console.warn(`[Skip Image] ${url} - Reason: ${e.message}`);
-                // Continue loop even if fail
-            }
+            } catch (e) { console.warn(`[Skip Image] ${url}`); }
         }
         doc.end();
 
         res.on('finish', async () => {
             try {
+                // 1. Update Statistik User / Guest
                 if (req.userDoc) {
                     await User.findByIdAndUpdate(req.userDoc._id, { $inc: { downloadCount: 1 } });
                 } else if (req.isGuest && req.clientIp) {
                     const cur = guestCache.get(req.clientIp) || 0;
                     guestCache.set(req.clientIp, cur + 1);
                 }
-            } catch (err) { console.error("[Limit Update Error]", err); }
+
+                // 2. Update Statistik Manga (Counter 'downloads' bertambah)
+                await Manga.findByIdAndUpdate(manga._id, { $inc: { downloads: 1 } });
+                
+            } catch (err) { console.error("[Update Error]", err); }
         });
 
     } catch (err) {
-        console.error("[Download Error]", err);
         if (!res.headersSent) res.status(500).send("Error generating PDF");
     }
 });
