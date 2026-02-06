@@ -213,74 +213,76 @@ router.get('/search', async (req, res) => {
 });
 
 // ==========================================
-// 5. DOWNLOAD LOGIC
-// ==========================================
+// DOWNLOAD ENDPOINT (REFINED & SAFER)
 router.get('/download/:slug/:chapterSlug', checkDownloadLimit, async (req, res) => {
     try {
         const { slug, chapterSlug } = req.params;
         
-        // 1. Cari Manga & Chapter
+        // 1. Validasi
         const manga = await Manga.findOne({ slug }).select('title _id').lean();
         if (!manga) return errorResponse(res, "Manga not found", 404);
 
         const chapter = await Chapter.findOne({ manga_id: manga._id, slug: chapterSlug }).lean();
         if (!chapter || !chapter.images?.length) return errorResponse(res, "Images not found", 404);
 
-        // 2. Setup PDF Stream
-        const cleanTitle = manga.title.replace(/[^a-zA-Z0-9]/g, '-');
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="${cleanTitle}-Ch${chapter.chapter_index}.pdf"`);
+        // 2. Setup Nama File (Cegah karakter error)
+        const cleanTitle = manga.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 50);
+        const filename = `${cleanTitle}-Ch${chapter.chapter_index}.pdf`;
 
-        const doc = new PDFDocument({ autoFirstPage: false });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+        // 3. Buat PDF
+        const doc = new PDFDocument({ autoFirstPage: false, margin: 0 });
         doc.pipe(res);
 
-        // 3. Loop Images (Download & Add to PDF)
+        // 4. Download Gambar (Sequential)
         for (const url of chapter.images) {
+            // Cek jika user disconnect/tutup tab, hentikan proses (Hemat resource)
+            if (res.writableEnded || res.closed) break; 
+
             try {
                 const response = await axios.get(url, { 
                     responseType: 'arraybuffer', 
-                    headers: { 
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                        'Referer': 'https://doujindesu.tv/' 
-                    },
-                    timeout: 8000 // 8 Detik timeout per gambar agar tidak hang
+                    headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://doujindesu.tv/' },
+                    timeout: 8000 // Timeout 8 detik per gambar
                 });
-                // Kompresi gambar (JPEG 70%) agar ukuran PDF kecil & cepat
-                const imgBuffer = await sharp(response.data).jpeg({ quality: 70 }).toBuffer();
+                
+                const imgBuffer = await sharp(response.data)
+                    .jpeg({ quality: 70, mozjpeg: true })
+                    .toBuffer();
                 
                 const img = doc.openImage(imgBuffer);
                 doc.addPage({ size: [img.width, img.height] });
                 doc.image(img, 0, 0);
 
             } catch (e) { 
-                // Jika 1 gambar gagal, skip saja, jangan batalkan seluruh PDF
-                console.warn(`[Skip Image] ${url} - Reason: ${e.message}`); 
+                console.warn(`[Skip Image] ${url} - ${e.message}`);
+                // Tetap lanjut ke gambar berikutnya meskipun satu gagal
             }
         }
+
         doc.end();
 
-        // 4. Update Counter setelah selesai (Finish Event)
+        // 5. Update Stats (Hanya jika selesai)
         res.on('finish', async () => {
             try {
-                // A. Update Kuota User/Guest
                 if (req.userDoc) {
                     await User.findByIdAndUpdate(req.userDoc._id, { $inc: { downloadCount: 1 } });
                 } else if (req.isGuest && req.clientIp) {
                     const cur = guestCache.get(req.clientIp) || 0;
                     guestCache.set(req.clientIp, cur + 1);
                 }
-
-                // B. Update Statistik Download Manga
                 await Manga.findByIdAndUpdate(manga._id, { $inc: { downloads: 1 } });
-                
-            } catch (err) { console.error("[Limit Update Error]", err); }
+            } catch (err) { console.error("[Update Stats Fail]", err); }
         });
 
     } catch (err) {
-        console.error("[Download Error]", err);
-        if (!res.headersSent) res.status(500).send("Error generating PDF");
+        console.error("[Fatal Download Error]", err);
+        if (!res.headersSent) res.status(500).json({ success: false, message: "Gagal membuat PDF" });
     }
 });
+
 
 // ==========================================
 // 6. WEBHOOK & EXPORT

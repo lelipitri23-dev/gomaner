@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Doujindesu - Downloader Manga PDF</title>
+    <title>Doujindesu PDF - Downloader</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -43,7 +43,6 @@
     </nav>
 
     <main class="container mx-auto px-4 py-8 flex-grow">
-        
         <div class="max-w-2xl mx-auto mb-10 text-center mt-4">
             <h2 class="text-3xl md:text-4xl font-extrabold mb-6 text-white">Cari, Klik, <span class="text-red-500">Simpan.</span></h2>
             <div class="relative group mx-auto w-full md:w-10/12">
@@ -63,7 +62,6 @@
                     <i class="fas fa-fire text-red-500 text-xl"></i>
                     <h3 class="text-xl font-bold text-white">Paling Banyak Didownload</h3>
                 </div>
-                
                 <div id="topList" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     <div class="h-48 bg-gray-800 rounded-xl animate-pulse"></div>
                     <div class="h-48 bg-gray-800 rounded-xl animate-pulse"></div>
@@ -79,12 +77,12 @@
         </div>
     </footer>
 
-    <div id="loadingOverlay" class="fixed inset-0 bg-[#0f0f11]/90 backdrop-blur-sm hidden flex flex-col items-center justify-center z-[70]">
+    <div id="loadingOverlay" class="fixed inset-0 bg-[#0f0f11]/90 backdrop-blur-sm hidden flex flex-col items-center justify-center z-[90]">
         <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-700 h-12 w-12 mb-4"></div>
         <p id="loadingText" class="text-gray-300 font-medium text-sm tracking-wide">Memproses...</p>
     </div>
 
-    <div id="toast" class="fixed bottom-8 right-8 translate-y-32 opacity-0 transition-all duration-500 z-[80] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-gray-800 border border-gray-700">
+    <div id="toast" class="fixed bottom-8 right-8 translate-y-32 opacity-0 transition-all duration-500 z-[95] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-gray-800 border border-gray-700">
         <i id="toastIcon" class="fas fa-info-circle text-xl"></i>
         <span id="toastMessage" class="font-medium text-sm">Notifikasi</span>
     </div>
@@ -93,7 +91,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        // FIREBASE CONFIG (Tetap sama)
+        // FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyAjcrntHoKmkdAsZr3ffcLqS1NL2lRN8Y8",
             authDomain: "doujindesuapk.firebaseapp.com",
@@ -109,63 +107,18 @@
         let currentUserToken = null;
         const trakteerLink = "https://trakteer.id/kamisekai/tip?quantity=1";
 
-        // --- MOBILE MENU LOGIC ---
-        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
-        const navMenu = document.getElementById('navMenu');
-        
-        mobileMenuBtn.addEventListener('click', () => {
-            const isHidden = navMenu.classList.contains('hidden');
-            if(isHidden) {
-                navMenu.classList.remove('hidden', 'opacity-0');
-                navMenu.classList.add('flex', 'opacity-100');
-                mobileMenuBtn.innerHTML = '<i class="fas fa-times"></i>'; // Change icon to X
-            } else {
-                navMenu.classList.add('hidden', 'opacity-0');
-                navMenu.classList.remove('flex', 'opacity-100');
-                mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>'; // Back to bars
-            }
-        });
-
-        // --- TOP DOWNLOADS LOGIC ---
-        async function loadTopDownloads() {
-            const container = document.getElementById('topList');
-            if(!container) return;
-
-            try {
-                const res = await fetch('/api/top-downloads');
-                const { data } = await res.json();
-
-                if(!data || data.length === 0) {
-                    container.innerHTML = `<p class="text-gray-500 col-span-full text-center text-sm">Belum ada data download.</p>`;
-                    return;
-                }
-
-                container.innerHTML = data.map(m => `
-                    <div class="bg-[#18181b] rounded-lg overflow-hidden border border-gray-800 hover:border-red-500/50 hover:-translate-y-1 transition duration-300 group shadow-md cursor-pointer" onclick="viewManga('${m.slug}')">
-                        <div class="relative aspect-[2/3] overflow-hidden">
-                            <img src="${m.thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 p-2 pt-8">
-                                <p class="text-[10px] text-gray-300 flex items-center gap-1">
-                                    <i class="fas fa-download text-red-500"></i> ${m.downloads || 0}
-                                </p>
-                            </div>
-                        </div>
-                        <div class="p-3">
-                            <h3 class="font-bold text-gray-200 truncate text-xs" title="${m.title}">${m.title}</h3>
-                        </div>
-                    </div>
-                `).join('');
-
-            } catch (e) {
-                container.innerHTML = `<p class="text-red-500 col-span-full text-xs">Gagal memuat list.</p>`;
-            }
-        }
-
-        // Initialize Top Downloads on Load
-        document.addEventListener('DOMContentLoaded', loadTopDownloads);
-
-        // --- AUTH & STATS ---
+        // --- AUTH & SETUP ---
         const userSection = document.getElementById('userSection');
+        const contentArea = document.getElementById('contentArea');
+        const searchInput = document.getElementById('searchInput');
+
+        function setupLoginButton() {
+            const btn = document.getElementById('btnLogin');
+            if(btn) btn.onclick = async () => {
+                try { await signInWithPopup(auth, provider); showToast("Login Berhasil", "success"); }
+                catch { showToast("Gagal Login", "error"); }
+            };
+        }
 
         async function updateStatsDisplay() {
             try {
@@ -173,7 +126,6 @@
                 const res = await fetch('/api/stats', { headers });
                 const data = await res.json();
                 
-                // Simplified bar for cleaner look
                 const pct = data.type === 'premium' ? 100 : Math.min((data.usage / data.limit) * 100, 100);
                 const color = data.type === 'premium' ? 'bg-yellow-500' : (pct >= 100 ? 'bg-red-600' : 'bg-blue-600');
                 const label = data.type === 'premium' ? 'PREMIUM' : `${data.usage}/${data.limit}`;
@@ -187,17 +139,8 @@
                         <div class="w-full md:w-32 h-1 bg-gray-800 rounded-full overflow-hidden">
                             <div class="${color} h-full transition-all duration-700" style="width: ${pct}%"></div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             } catch (e) { return ""; }
-        }
-
-        function setupLoginButton() {
-            const btn = document.getElementById('btnLogin');
-            if(btn) btn.onclick = async () => {
-                try { await signInWithPopup(auth, provider); showToast("Login Berhasil", "success"); }
-                catch { showToast("Gagal Login", "error"); }
-            };
         }
 
         onAuthStateChanged(auth, async (user) => {
@@ -213,8 +156,7 @@
                         </div>
                         <img src="${user.photoURL}" class="w-8 h-8 rounded-full border border-gray-600">
                         <button id="btnLogout" class="w-8 h-8 flex items-center justify-center bg-gray-700 hover:bg-red-600 rounded-full transition text-xs text-white"><i class="fas fa-power-off"></i></button>
-                    </div>
-                `;
+                    </div>`;
                 document.getElementById('btnLogout').onclick = () => signOut(auth);
             } else {
                 currentUserToken = null;
@@ -222,23 +164,16 @@
                     ${statsHtml}
                     <button id="btnLogin" class="bg-white text-black hover:bg-gray-200 w-full md:w-auto mt-2 md:mt-0 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex justify-center items-center gap-2">
                         <i class="fab fa-google"></i> <span>Login</span>
-                    </button>
-                `;
+                    </button>`;
                 setupLoginButton();
             }
         });
 
-        // --- CORE FUNCTIONS (SEARCH & VIEW) ---
-        const contentArea = document.getElementById('contentArea');
-        const searchInput = document.getElementById('searchInput');
-
+        // --- CORE LOGIC (Pencarian & View) ---
+        // Kita pasang ke window agar bisa dipanggil HTML, tapi logika tombol pakai Event Delegation
         window.searchManga = async () => {
             const q = searchInput.value.trim();
-            if(!q) {
-                // Jika kosong, kembalikan ke Home default
-                location.reload(); 
-                return;
-            }
+            if(!q) return location.reload();
             
             showLoading(true, "Mencari...");
             try {
@@ -253,7 +188,7 @@
                         </div>
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 animate-fade-in">
                             ${data.map(m => `
-                                <div class="bg-[#18181b] rounded-xl overflow-hidden border border-gray-800 hover:border-red-500/50 hover:-translate-y-2 transition duration-300 group shadow-lg">
+                                <div class="bg-[#18181b] rounded-xl overflow-hidden border border-gray-800 hover:border-red-500/50 hover:-translate-y-2 transition duration-300 group shadow-lg cursor-pointer" onclick="viewManga('${m.slug}')">
                                     <div class="relative aspect-[2/3] overflow-hidden">
                                         <img src="${m.thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-700">
                                         <div class="absolute bottom-3 left-3 right-3">
@@ -261,8 +196,7 @@
                                         </div>
                                     </div>
                                     <div class="p-3">
-                                        <h3 class="font-bold text-gray-100 truncate text-xs mb-2" title="${m.title}">${m.title}</h3>
-                                        <button onclick="viewManga('${m.slug}')" class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-white py-1.5 rounded text-[10px] font-bold transition border border-gray-700">LIHAT</button>
+                                        <h3 class="font-bold text-gray-100 truncate text-xs" title="${m.title}">${m.title}</h3>
                                     </div>
                                 </div>
                             `).join('')}
@@ -307,8 +241,11 @@
                                     ${chapters.map(ch => `
                                         <div class="bg-[#202024] hover:bg-[#27272a] p-2.5 rounded flex justify-between items-center group transition border border-gray-800 hover:border-gray-600">
                                             <span class="text-xs font-mono text-gray-400 group-hover:text-white transition">Ch. ${ch.chapter_index}</span>
-                                            <button onclick="handleDownload('${info.slug}', '${ch.slug}', ${ch.chapter_index}')" 
-                                                class="bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white px-3 py-1 rounded-[4px] text-[10px] font-bold transition flex items-center gap-1">
+                                            
+                                            <button class="btn-download bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white px-3 py-1 rounded-[4px] text-[10px] font-bold transition flex items-center gap-1"
+                                                data-slug="${info.slug}" 
+                                                data-chslug="${ch.slug}" 
+                                                data-idx="${ch.chapter_index}">
                                                 <i class="fas fa-download"></i> PDF
                                             </button>
                                         </div>
@@ -321,13 +258,23 @@
             finally { showLoading(false); }
         };
 
-        window.handleDownload = async (slug, chSlug, idx) => {
+        // --- SISTEM DOWNLOAD (EVENT LISTENER) ---
+        // Ini lebih kuat dari onclick biasa
+        document.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.btn-download');
+            if(!btn) return; // Bukan tombol download
+
+            // Ambil data dari tombol
+            const { slug, chslug, idx } = btn.dataset;
+            
+            console.log("Meminta Download:", slug, chslug); // Debugging
+
             if(!confirm(`Download Chapter ${idx}?`)) return;
             showLoading(true, `Generate PDF Ch.${idx}...`);
 
             try {
                 const headers = currentUserToken ? { 'Authorization': `Bearer ${currentUserToken}` } : {};
-                const res = await fetch(`/api/download/${slug}/${chSlug}`, { headers });
+                const res = await fetch(`/api/download/${slug}/${chslug}`, { headers });
 
                 if(res.status === 403) {
                     const d = await res.json();
@@ -353,20 +300,19 @@
                 if(authUser) { auth.updateCurrentUser(authUser); } 
                 else {
                     const statsHtml = await updateStatsDisplay();
-                    userSection.innerHTML = `
-                        ${statsHtml}
-                        <button id="btnLogin" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex justify-center items-center gap-2">
-                            <i class="fab fa-google"></i> <span>Login</span>
-                        </button>
-                    `;
-                    setupLoginButton();
+                    // Update tampilan stats manual
+                    const wrapper = userSection.querySelector('.flex-col');
+                    if(wrapper && statsHtml) wrapper.outerHTML = statsHtml.match(/<div class="flex flex-col.*?<\/div>/s)[0];
                 }
 
-            } catch(e) { showToast("Gagal download. Coba lagi.", "error"); }
+            } catch(e) { 
+                console.error(e);
+                showToast("Gagal download. Coba lagi.", "error"); 
+            }
             finally { showLoading(false); }
-        };
+        });
 
-        // HELPER UTILS (Sama)
+        // --- UTILS ---
         function showLoading(show, msg) {
             const el = document.getElementById('loadingOverlay');
             if(show) { document.getElementById('loadingText').innerText = msg; el.classList.remove('hidden'); }
@@ -378,14 +324,56 @@
             const icon = document.getElementById('toastIcon');
             const txt = document.getElementById('toastMessage');
             const colors = type === 'error' ? 'text-red-400 border-red-500/50' : 'text-green-400 border-green-500/50';
-            el.className = `fixed bottom-8 right-8 z-[80] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-[#18181b] border transition-all duration-300 ${colors}`;
+            el.className = `fixed bottom-8 right-8 z-[95] px-6 py-4 rounded-xl shadow-2xl flex items-center gap-4 bg-[#18181b] border transition-all duration-300 ${colors}`;
             icon.className = type === 'error' ? 'fas fa-times-circle text-red-500 text-xl' : 'fas fa-check-circle text-green-500 text-xl';
             txt.innerText = msg;
             el.classList.remove('translate-y-32', 'opacity-0');
             setTimeout(() => el.classList.add('translate-y-32', 'opacity-0'), 3000);
         }
 
-        // LISTENERS
+        // --- MOBILE MENU ---
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const navMenu = document.getElementById('navMenu');
+        mobileMenuBtn.addEventListener('click', () => {
+            const isHidden = navMenu.classList.contains('hidden');
+            if(isHidden) {
+                navMenu.classList.remove('hidden', 'opacity-0');
+                navMenu.classList.add('flex', 'opacity-100');
+                mobileMenuBtn.innerHTML = '<i class="fas fa-times"></i>';
+            } else {
+                navMenu.classList.add('hidden', 'opacity-0');
+                navMenu.classList.remove('flex', 'opacity-100');
+                mobileMenuBtn.innerHTML = '<i class="fas fa-bars"></i>';
+            }
+        });
+
+        // --- INIT TOP DOWNLOADS ---
+        (async () => {
+            const container = document.getElementById('topList');
+            if(!container) return;
+            try {
+                const res = await fetch('/api/top-downloads');
+                const { data } = await res.json();
+                if(data?.length) {
+                    container.innerHTML = data.map(m => `
+                        <div class="bg-[#18181b] rounded-lg overflow-hidden border border-gray-800 hover:border-red-500/50 hover:-translate-y-1 transition duration-300 group shadow-md cursor-pointer" onclick="viewManga('${m.slug}')">
+                            <div class="relative aspect-[2/3] overflow-hidden">
+                                <img src="${m.thumb}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 p-2 pt-8">
+                                    <p class="text-[10px] text-gray-300 flex items-center gap-1">
+                                        <i class="fas fa-download text-red-500"></i> ${m.downloads || 0}
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="p-3">
+                                <h3 class="font-bold text-gray-200 truncate text-xs" title="${m.title}">${m.title}</h3>
+                            </div>
+                        </div>
+                    `).join('');
+                } else { container.innerHTML = `<p class="text-gray-500 col-span-full text-center text-sm">Belum ada data download.</p>`; }
+            } catch { container.innerHTML = `<p class="text-red-500 col-span-full text-xs">Gagal memuat list.</p>`; }
+        })();
+
         document.getElementById('btnSearch').onclick = window.searchManga;
         document.getElementById('searchInput').onkeypress = (e) => e.key === 'Enter' && window.searchManga();
     </script>
