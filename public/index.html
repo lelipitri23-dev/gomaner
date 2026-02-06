@@ -106,7 +106,7 @@
                 } else {
                     const pct = Math.min((data.usage / data.limit) * 100, 100);
                     width = `${pct}%`;
-                    color = pct > 80 ? "bg-red-500" : (pct > 50 ? "bg-yellow-500" : "bg-blue-500");
+                    color = pct >= 100 ? "bg-red-600" : (pct > 80 ? "bg-red-500" : "bg-blue-500");
                     label = `${data.type === 'guest' ? 'Guest' : 'User'}: ${data.usage}/${data.limit}`;
                 }
 
@@ -119,6 +119,17 @@
                     </div>
                 `;
             } catch (e) { return ""; }
+        }
+
+        // Render Login/Logout Button Helper
+        function setupLoginButton() {
+            const btnLogin = document.getElementById('btnLogin');
+            if(btnLogin) {
+                btnLogin.addEventListener('click', async () => {
+                    try { await signInWithPopup(auth, provider); showToast("Login Berhasil!", "success"); }
+                    catch { showToast("Gagal Login", "error"); }
+                });
+            }
         }
 
         onAuthStateChanged(auth, async (user) => {
@@ -148,10 +159,7 @@
                         <i class="fab fa-google"></i> <span class="hidden md:inline">Login</span>
                     </button>
                 `;
-                document.getElementById('btnLogin').addEventListener('click', async () => {
-                    try { await signInWithPopup(auth, provider); showToast("Login Berhasil!", "success"); }
-                    catch { showToast("Gagal Login", "error"); }
-                });
+                setupLoginButton();
             }
         });
 
@@ -217,7 +225,7 @@
                                     ${chapters.map(ch => `
                                         <div class="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg flex justify-between items-center group transition">
                                             <span class="text-sm font-mono text-gray-300">Ch. ${ch.chapter_index}</span>
-                                            <button onclick="handleDownload('${info.slug}', '${ch.slug}', ${ch.chapter_index})" 
+                                            <button onclick="handleDownload('${info.slug}', '${ch.slug}', ${ch.chapter_index}')" 
                                                 class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 active:scale-95 transition">
                                                 <i class="fas fa-file-pdf"></i> PDF
                                             </button>
@@ -255,12 +263,25 @@
                     a.click(); a.remove();
                     showToast("Download Berhasil!", "success");
                     
-                    // Refresh stats bar
+                    // --- UPDATE STATS LOGIC ---
                     const authUser = auth.currentUser;
                     if(authUser) {
-                        // Trick to trigger update
-                        onAuthStateChanged(auth, () => {}); 
+                        // Untuk User Login: Trigger update via auth state
+                        // Trick ini memicu listener onAuthStateChanged di atas
+                        auth.updateCurrentUser(authUser);
+                    } else {
+                        // Untuk Guest: Update manual UI
+                        const statsHtml = await updateStatsDisplay();
+                        userSection.innerHTML = `
+                            ${statsHtml}
+                            <button id="btnLogin" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+                                <i class="fab fa-google"></i> <span class="hidden md:inline">Login</span>
+                            </button>
+                        `;
+                        setupLoginButton();
                     }
+                    // ---------------------------
+
                 } else { throw new Error(); }
             } catch(e) { showToast("Gagal download. Cek koneksi/server.", "error"); }
             finally { showLoading(false); }
