@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Partner Manga PDF</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .loader { border-top-color: #ef4444; animation: spinner 1s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col font-sans">
+
+    <nav class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50 shadow-lg">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2 cursor-pointer hover:opacity-80 transition" onclick="location.reload()">
+                <i class="fas fa-book-open text-red-500 text-2xl"></i>
+                <h1 class="text-xl font-bold tracking-wider">PARTNER<span class="text-red-500">MANGA</span></h1>
+            </div>
+            
+            <div id="userSection" class="flex items-center gap-4">
+                <div class="animate-pulse w-24 h-8 bg-gray-700 rounded"></div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto px-4 py-10 flex-grow">
+        <div class="max-w-2xl mx-auto mb-12 text-center">
+            <h2 class="text-3xl font-bold mb-6">Download Manga Favoritmu</h2>
+            <div class="relative">
+                <input type="text" id="searchInput" 
+                    class="w-full bg-gray-800 border-2 border-gray-700 text-white pl-12 pr-24 py-4 rounded-full focus:border-red-500 focus:outline-none transition shadow-xl"
+                    placeholder="Cari manga (contoh: One Piece)...">
+                <i class="fas fa-search absolute left-5 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <button id="btnSearch" class="absolute right-2 top-2 bottom-2 bg-red-600 hover:bg-red-700 text-white px-6 rounded-full font-bold transition">
+                    Cari
+                </button>
+            </div>
+        </div>
+
+        <div id="contentArea">
+            <div class="text-center text-gray-500 mt-20">
+                <i class="fas fa-cloud-download-alt text-6xl mb-4 opacity-30"></i>
+                <p>Mulai pencarian untuk menampilkan manga.</p>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-center py-6 text-gray-500 text-sm border-t border-gray-700">
+        &copy; 2026 Partner Manga. All rights reserved.
+    </footer>
+
+    <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-90 hidden flex flex-col items-center justify-center z-[60]">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-16 w-16 mb-4"></div>
+        <h3 class="text-xl font-bold">Memproses...</h3>
+        <p id="loadingText" class="text-gray-400 text-sm">Mohon tunggu sebentar.</p>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 translate-y-24 opacity-0 transition-all duration-300 z-[60] px-6 py-4 rounded shadow-2xl flex items-center gap-3">
+        <i id="toastIcon" class="fas fa-info-circle"></i>
+        <span id="toastMessage">Pesan notifikasi</span>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // CONFIG FIREBASE (GANTI DENGAN PUNYAMU)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAjcrntHoKmkdAsZr3ffcLqS1NL2lRN8Y8",
+            authDomain: "doujindesuapk.firebaseapp.com",
+            projectId: "doujindesuapk",
+            storageBucket: "doujindesuapk.firebasestorage.app",
+            messagingSenderId: "31970708581",
+            appId: "1:31970708581:web:eb7d33787587ec3b8b4a8c",
+            measurementId: "G-CPSKY8VFN8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+        
+        let currentUserToken = null;
+        const trakteerLink = "https://trakteer.id/kamisekai/tip?quantity=1";
+
+        // --- AUTH & STATS LOGIC ---
+        const userSection = document.getElementById('userSection');
+
+        async function updateStatsDisplay() {
+            try {
+                const headers = currentUserToken ? { 'Authorization': `Bearer ${currentUserToken}` } : {};
+                const res = await fetch('/api/stats', { headers });
+                const data = await res.json();
+
+                // Logic Warna & Width Bar
+                let width = "0%", color = "bg-blue-500", label = "";
+                
+                if (data.type === 'premium') {
+                    width = "100%"; color = "bg-yellow-500"; label = "Premium (∞)";
+                } else {
+                    const pct = Math.min((data.usage / data.limit) * 100, 100);
+                    width = `${pct}%`;
+                    color = pct > 80 ? "bg-red-500" : (pct > 50 ? "bg-yellow-500" : "bg-blue-500");
+                    label = `${data.type === 'guest' ? 'Guest' : 'User'}: ${data.usage}/${data.limit}`;
+                }
+
+                return `
+                    <div class="flex flex-col items-end mr-3">
+                        <span class="text-[10px] text-gray-300 font-mono uppercase tracking-wide mb-1">${label}</span>
+                        <div class="w-32 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                            <div class="${color} h-full transition-all duration-500" style="width: ${width}"></div>
+                        </div>
+                    </div>
+                `;
+            } catch (e) { return ""; }
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+            const statsHtml = await updateStatsDisplay(); // Fetch stats dulu
+
+            if (user) {
+                currentUserToken = await user.getIdToken();
+                userSection.innerHTML = `
+                    ${statsHtml}
+                    <div class="flex items-center gap-3 bg-gray-700/50 pr-1 pl-3 py-1 rounded-full border border-gray-600">
+                        <div class="text-right hidden md:block">
+                            <p class="text-xs font-bold text-white leading-tight">${user.displayName.split(' ')[0]}</p>
+                            <a href="${trakteerLink}" target="_blank" class="text-[10px] text-yellow-500 hover:text-yellow-400 font-bold flex items-center justify-end gap-1">
+                                <i class="fas fa-crown"></i> Upgrade
+                            </a>
+                        </div>
+                        <img src="${user.photoURL}" class="w-8 h-8 rounded-full border border-gray-500">
+                        <button id="btnLogout" class="w-8 h-8 flex items-center justify-center bg-gray-600 hover:bg-red-600 rounded-full transition text-xs"><i class="fas fa-power-off"></i></button>
+                    </div>
+                `;
+                document.getElementById('btnLogout').addEventListener('click', () => signOut(auth));
+            } else {
+                currentUserToken = null;
+                userSection.innerHTML = `
+                    ${statsHtml}
+                    <button id="btnLogin" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full text-sm font-bold shadow-lg transition flex items-center gap-2">
+                        <i class="fab fa-google"></i> <span class="hidden md:inline">Login</span>
+                    </button>
+                `;
+                document.getElementById('btnLogin').addEventListener('click', async () => {
+                    try { await signInWithPopup(auth, provider); showToast("Login Berhasil!", "success"); }
+                    catch { showToast("Gagal Login", "error"); }
+                });
+            }
+        });
+
+        // --- CORE FUNCTIONS ---
+        const contentArea = document.getElementById('contentArea');
+        const searchInput = document.getElementById('searchInput');
+
+        window.searchManga = async () => {
+            const q = searchInput.value.trim();
+            if(!q) return showToast("Ketik judul manga dulu!", "error");
+            
+            showLoading(true, "Mencari manga...");
+            try {
+                const res = await fetch(`/api/search?q=${q}`);
+                const { data } = await res.json();
+                
+                if(data && data.length > 0) {
+                    contentArea.innerHTML = `
+                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                            ${data.map(m => `
+                                <div class="bg-gray-800 rounded-xl overflow-hidden shadow-lg border border-gray-700 group hover:-translate-y-1 transition duration-300">
+                                    <div class="relative overflow-hidden aspect-[2/3]">
+                                        <img src="${m.thumb}" class="w-full h-full object-cover group-hover:scale-110 transition duration-500">
+                                        <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4 pt-10">
+                                            <span class="text-xs bg-red-600 px-2 py-1 rounded text-white font-bold shadow">${m.chapter_count || '?'} Ch</span>
+                                        </div>
+                                    </div>
+                                    <div class="p-4">
+                                        <h3 class="font-bold text-white truncate text-sm mb-3" title="${m.title}">${m.title}</h3>
+                                        <button onclick="viewManga('${m.slug}')" class="w-full bg-gray-700 hover:bg-gray-600 py-2 rounded text-xs font-bold transition">Lihat Detail</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                } else {
+                    contentArea.innerHTML = `<div class="text-center py-10 text-gray-500">Tidak ditemukan.</div>`;
+                }
+            } catch(e) { showToast("Gagal mencari data", "error"); }
+            finally { showLoading(false); }
+        };
+
+        window.viewManga = async (slug) => {
+            showLoading(true, "Memuat info...");
+            try {
+                const res = await fetch(`/api/manga/${slug}`);
+                const { success, data } = await res.json();
+                if(!success) throw new Error();
+
+                const { info, chapters } = data;
+                contentArea.innerHTML = `
+                    <div class="bg-gray-800 rounded-2xl p-6 border border-gray-700 shadow-2xl animate-fade-in">
+                        <button onclick="location.reload()" class="mb-6 text-gray-400 hover:text-white flex items-center gap-2 text-sm"><i class="fas fa-arrow-left"></i> Kembali</button>
+                        <div class="flex flex-col md:flex-row gap-8">
+                            <img src="${info.thumb}" class="w-48 rounded-lg shadow-2xl mx-auto md:mx-0 border-2 border-gray-600">
+                            <div class="flex-1">
+                                <h1 class="text-3xl font-bold mb-2 text-white">${info.title}</h1>
+                                <p class="text-gray-400 text-sm mb-6 line-clamp-3">${info.metadata?.synopsis || 'Sinopsis tidak tersedia.'}</p>
+                                
+                                <div class="flex items-center justify-between border-b border-gray-700 pb-2 mb-4">
+                                    <h3 class="font-bold text-red-500"><i class="fas fa-list"></i> ${chapters.length} Chapter</h3>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
+                                    ${chapters.map(ch => `
+                                        <div class="bg-gray-700 hover:bg-gray-600 p-3 rounded-lg flex justify-between items-center group transition">
+                                            <span class="text-sm font-mono text-gray-300">Ch. ${ch.chapter_index}</span>
+                                            <button onclick="handleDownload('${info.slug}', '${ch.slug}', ${ch.chapter_index})" 
+                                                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold shadow-lg flex items-center gap-2 active:scale-95 transition">
+                                                <i class="fas fa-file-pdf"></i> PDF
+                                            </button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+            } catch(e) { showToast("Gagal memuat detail", "error"); }
+            finally { showLoading(false); }
+        };
+
+        window.handleDownload = async (slug, chSlug, idx) => {
+            if(!confirm(`Download Chapter ${idx}?`)) return;
+            showLoading(true, `Sedang memproses Chapter ${idx}...`);
+
+            try {
+                const headers = currentUserToken ? { 'Authorization': `Bearer ${currentUserToken}` } : {};
+                const res = await fetch(`/api/download/${slug}/${chSlug}`, { headers });
+
+                if(res.status === 403) {
+                    const d = await res.json();
+                    showLoading(false);
+                    return showToast(d.message, "error");
+                }
+
+                if(res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url; 
+                    a.download = `${slug}-ch${idx}.pdf`;
+                    document.body.appendChild(a);
+                    a.click(); a.remove();
+                    showToast("Download Berhasil!", "success");
+                    
+                    // Refresh stats bar
+                    const authUser = auth.currentUser;
+                    if(authUser) {
+                        // Trick to trigger update
+                        onAuthStateChanged(auth, () => {}); 
+                    }
+                } else { throw new Error(); }
+            } catch(e) { showToast("Gagal download. Cek koneksi/server.", "error"); }
+            finally { showLoading(false); }
+        };
+
+        // --- UTILS ---
+        function showLoading(show, msg) {
+            const el = document.getElementById('loadingOverlay');
+            if(show) { document.getElementById('loadingText').innerText = msg; el.classList.remove('hidden'); }
+            else el.classList.add('hidden');
+        }
+
+        function showToast(msg, type="info") {
+            const el = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const txt = document.getElementById('toastMessage');
+            
+            el.className = `fixed bottom-5 right-5 z-[60] px-6 py-4 rounded shadow-2xl flex items-center gap-3 transition-all duration-300 ${type === 'error' ? 'bg-red-900 text-red-100 border-l-4 border-red-500' : 'bg-green-900 text-green-100 border-l-4 border-green-500'}`;
+            icon.className = type === 'error' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
+            txt.innerText = msg;
+
+            el.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => el.classList.add('translate-y-24', 'opacity-0'), 3000);
+        }
+
+        // Listeners
+        document.getElementById('btnSearch').addEventListener('click', window.searchManga);
+        document.getElementById('searchInput').addEventListener('keypress', (e) => e.key === 'Enter' && window.searchManga());
+    </script>
+</body>
+</html>
