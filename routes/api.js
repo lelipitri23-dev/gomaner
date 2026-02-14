@@ -82,42 +82,59 @@ async function attachChapterInfo(mangas) {
 router.get('/manga', async (req, res) => {
     try {
         const { page, limit, skip } = getPaginationParams(req);
-        const { q, status, type, genre } = req.query;
+        // 1. Tambahkan 'order' dalam destructuring query
+        const { q, status, type, genre, order } = req.query;
 
         // Bangun Query Object Dinamis
         let query = {};
 
-        // 1. Search (Title)
+        // Filter Search (Title)
         if (q) {
             query.title = { $regex: q, $options: 'i' };
         }
 
-        // 2. Filter Status (Publishing/Finished)
+        // Filter Status (Publishing/Finished)
         if (status && status !== 'all') {
-            // Support berbagai variasi penulisan status
             query['metadata.status'] = { $regex: new RegExp(`^${status}$`, 'i') };
         }
 
-        // 3. Filter Type (Manga/Manhwa/Doujinshi)
+        // Filter Type (Manga/Manhwa/Doujinshi)
         if (type && type !== 'all') {
             query['metadata.type'] = { $regex: new RegExp(`^${type}$`, 'i') };
         }
 
-        // 4. Filter Genre
+        // Filter Genre
         if (genre && genre !== 'all') {
-            // Regex fleksibel untuk menangani spasi atau dash
-            // Contoh: "Slice of Life" bisa match "Slice-of-Life"
             const cleanGenre = genre.replace(/-/g, '[\\s\\-]');
             query.tags = { $regex: new RegExp(cleanGenre, 'i') };
+        }
+
+        // --- 2. LOGIKA SORTING BARU ---
+        let sortOption = { updatedAt: -1 }; // Default: Terbaru
+
+        switch (order) {
+            case 'oldest':
+                sortOption = { updatedAt: 1 }; // Terlama (Ascending)
+                break;
+            case 'popular':
+                sortOption = { views: -1 }; // Terpopuler (Views terbanyak)
+                break;
+            case 'az':
+                sortOption = { title: 1 }; // Abjad A-Z
+                break;
+            case 'za':
+                sortOption = { title: -1 }; // Abjad Z-A
+                break;
+            default:
+                sortOption = { updatedAt: -1 }; // Terbaru (Default)
         }
 
         // Eksekusi Query
         const total = await Manga.countDocuments(query);
         
-        // PENTING: Tambahkan field yang dibutuhkan frontend di .select()
         const mangasRaw = await Manga.find(query)
             .select('title slug thumb metadata views rating status type tags updatedAt') 
-            .sort({ updatedAt: -1 }) // Selalu urutkan update terbaru
+            .sort(sortOption) // 3. Gunakan variabel sortOption disini
             .skip(skip)
             .limit(limit)
             .lean();
