@@ -181,12 +181,21 @@ router.get('/home', async (req, res) => {
             .sort({ updatedAt: -1 })
             .limit(12)
             .lean();
+
+        // --- TAMBAHKAN QUERY INI ---
+        // Query 4: Doujinshi Update
+        const doujinshiRaw = await Manga.find({ 'metadata.type': { $regex: 'doujinshi', $options: 'i' } })
+            .select(selectFields)
+            .sort({ updatedAt: -1 })
+            .limit(12)
+            .lean();
         
-        // Attach Counts Paralel
-        const [recents, trending, manhwas] = await Promise.all([
+        // Attach Counts Paralel (Sertakan doujinshiRaw di sini)
+        const [recents, trending, manhwas, doujinshis] = await Promise.all([
             attachChapterInfo(recentsRaw),
             attachChapterInfo(trendingRaw),
-            attachChapterInfo(manhwasRaw)
+            attachChapterInfo(manhwasRaw),
+            attachChapterInfo(doujinshiRaw) // Jalankan fungsi info chapter untuk doujin
         ]);
 
         res.json({
@@ -194,7 +203,8 @@ router.get('/home', async (req, res) => {
             data: {
                 recents,
                 trending,
-                manhwas
+                manhwas,
+                doujinshis // Kirim data doujinshi ke frontend
             }
         });
 
