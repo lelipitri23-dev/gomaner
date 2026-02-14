@@ -29,23 +29,56 @@ const getPaginationParams = (req, defaultLimit = 24) => {
     return { page, limit, skip };
 };
 
-// Helper: Optimized Chapter Count
-async function attachChapterCounts(mangas) {
+// Helper: Optimized Chapter Count & Last Chapter
+async function attachChapterInfo(mangas) {
     if (!mangas || mangas.length === 0) return [];
     const mangaIds = mangas.map(m => m._id);
+
+    // 1. Hitung Total Chapter per Manga
     const counts = await Chapter.aggregate([
         { $match: { manga_id: { $in: mangaIds } } },
         { $group: { _id: "$manga_id", count: { $sum: 1 } } }
     ]);
+
+    // 2. Cari Chapter Terakhir per Manga (Untuk tombol "Chapter ...")
+    // Ini agak berat jika datanya jutaan, tapi untuk skala kecil-menengah oke.
+    // Cara optimasi: simpan last_chapter di collection Manga saat upload chapter baru.
+    // Di sini kita pakai cara simple dulu:
+    const lastChapters = await Chapter.aggregate([
+        { $match: { manga_id: { $in: mangaIds } } },
+        { $sort: { chapter_index: -1 } },
+        { $group: { 
+            _id: "$manga_id", 
+            last_chapter: { $first: "$chapter_index" },
+            last_chapter_slug: { $first: "$slug" },
+            updatedAt: { $first: "$createdAt" }
+        }}
+    ]);
+
     const countMap = {};
     counts.forEach(c => { countMap[c._id.toString()] = c.count; });
-    return mangas.map(m => ({ ...m, chapter_count: countMap[m._id.toString()] || 0 }));
+
+    const lastChapMap = {};
+    lastChapters.forEach(c => { 
+        lastChapMap[c._id.toString()] = {
+            index: c.last_chapter,
+            slug: c.last_chapter_slug,
+            date: c.updatedAt
+        }; 
+    });
+
+    return mangas.map(m => ({ 
+        ...m, 
+        chapter_count: countMap[m._id.toString()] || 0,
+        last_chapter: lastChapMap[m._id.toString()]?.index || '?',
+        last_chapter_slug: lastChapMap[m._id.toString()]?.slug || '',
+        last_update: lastChapMap[m._id.toString()]?.date || m.updatedAt
+    }));
 }
 
 // ==========================================
 // 1. UTAMA: ADVANCED FILTER & SEARCH (GET /manga)
 // ==========================================
-// Endpoint ini menggantikan /manga-list, /search, dan /filter terpisah
 router.get('/manga', async (req, res) => {
     try {
         const { page, limit, skip } = getPaginationParams(req);
@@ -61,33 +94,36 @@ router.get('/manga', async (req, res) => {
 
         // 2. Filter Status (Publishing/Finished)
         if (status && status !== 'all') {
-            query['metadata.status'] = { $regex: `^${status}$`, $options: 'i' };
+            // Support berbagai variasi penulisan status
+            query['metadata.status'] = { $regex: new RegExp(`^${status}$`, 'i') };
         }
 
         // 3. Filter Type (Manga/Manhwa/Doujinshi)
         if (type && type !== 'all') {
-            query['metadata.type'] = { $regex: `^${type}$`, $options: 'i' };
+            query['metadata.type'] = { $regex: new RegExp(`^${type}$`, 'i') };
         }
 
         // 4. Filter Genre
         if (genre && genre !== 'all') {
             // Regex fleksibel untuk menangani spasi atau dash
+            // Contoh: "Slice of Life" bisa match "Slice-of-Life"
             const cleanGenre = genre.replace(/-/g, '[\\s\\-]');
             query.tags = { $regex: new RegExp(cleanGenre, 'i') };
         }
 
         // Eksekusi Query
-        const [total, mangasRaw] = await Promise.all([
-            Manga.countDocuments(query),
-            Manga.find(query)
-                .select('title slug thumb metadata updatedAt')
-                .sort({ updatedAt: -1 }) // Selalu urutkan update terbaru
-                .skip(skip)
-                .limit(limit)
-                .lean()
-        ]);
+        const total = await Manga.countDocuments(query);
+        
+        // PENTING: Tambahkan field yang dibutuhkan frontend di .select()
+        const mangasRaw = await Manga.find(query)
+            .select('title slug thumb metadata views rating status type tags updatedAt') 
+            .sort({ updatedAt: -1 }) // Selalu urutkan update terbaru
+            .skip(skip)
+            .limit(limit)
+            .lean();
 
-        const mangas = await attachChapterCounts(mangasRaw);
+        // Attach info tambahan (Chapter Count & Last Chapter)
+        const mangas = await attachChapterInfo(mangasRaw);
 
         successResponse(res, mangas, {
             currentPage: page,
@@ -106,50 +142,42 @@ router.get('/manga', async (req, res) => {
 // ==========================================
 router.get('/home', async (req, res) => {
     try {
+        const selectFields = 'title slug thumb metadata views rating status type updatedAt';
+
         // Query 1: Recents (Update Terbaru)
         const recentsRaw = await Manga.find()
-            .select('title slug thumb metadata createdAt updatedAt')
+            .select(selectFields)
             .sort({ updatedAt: -1 })
             .limit(12)
             .lean();
 
         // Query 2: Trending (Top Views)
         const trendingRaw = await Manga.find()
-            .select('title slug thumb views metadata')
+            .select(selectFields)
             .sort({ views: -1 })
             .limit(10)
             .lean();
 
         // Query 3: Manhwa Update
         const manhwasRaw = await Manga.find({ 'metadata.type': { $regex: 'manhwa', $options: 'i' } })
-            .select('title slug thumb metadata updatedAt')
+            .select(selectFields)
             .sort({ updatedAt: -1 })
             .limit(12)
             .lean();
         
-        // Query 4: Doujinshi Update (Optional, buat jaga-jaga)
-        const doujinshiRaw = await Manga.find({ 'metadata.type': { $regex: 'doujin', $options: 'i' } })
-            .select('title slug thumb metadata updatedAt')
-            .sort({ updatedAt: -1 })
-            .limit(12)
-            .lean();
-
         // Attach Counts Paralel
-        const [recents, trending, manhwas, doujinshi] = await Promise.all([
-            attachChapterCounts(recentsRaw),
-            attachChapterCounts(trendingRaw),
-            attachChapterCounts(manhwasRaw),
-            attachChapterCounts(doujinshiRaw)
+        const [recents, trending, manhwas] = await Promise.all([
+            attachChapterInfo(recentsRaw),
+            attachChapterInfo(trendingRaw),
+            attachChapterInfo(manhwasRaw)
         ]);
 
-        // Kirim struktur yang sesuai dengan Frontend page.js
         res.json({
             success: true,
             data: {
                 recents,
                 trending,
-                manhwas,  // Plural sesuai frontend
-                doujinshi // Tambahan
+                manhwas
             }
         });
 
@@ -185,12 +213,12 @@ router.get('/manga/:slug', async (req, res) => {
         if (manga.tags && manga.tags.length > 0) {
             recommendations = await Manga.find({
                 tags: { $in: manga.tags },
-                _id: { $ne: manga._id } // Jangan tampilkan manga yang sama
+                _id: { $ne: manga._id }
             })
-            .select('title slug thumb metadata')
+            .select('title slug thumb metadata views rating')
             .limit(4)
             .lean();
-            recommendations = await attachChapterCounts(recommendations);
+            recommendations = await attachChapterInfo(recommendations);
         }
 
         successResponse(res, { info: manga, chapters, recommendations });
@@ -218,16 +246,15 @@ router.get('/read/:slug/:chapterSlug', async (req, res) => {
         if (!chapter) return errorResponse(res, 'Chapter not found', 404);
 
         // 3. Cari Next & Prev Chapter
-        // Logic: 
-        // Next Chapter = Chapter Index yang lebih besar TERDEKAT (sort Ascending 1)
-        // Prev Chapter = Chapter Index yang lebih kecil TERDEKAT (sort Descending -1)
+        // Prev: Chapter Index Lebih Kecil Terdekat (Descending)
+        // Next: Chapter Index Lebih Besar Terdekat (Ascending)
         
         const [nextChap, prevChap] = await Promise.all([
             Chapter.findOne({ 
                 manga_id: manga._id, 
                 chapter_index: { $gt: chapter.chapter_index } 
             })
-            .sort({ chapter_index: 1 }) // Ambil yang paling kecil dari yang lebih besar
+            .sort({ chapter_index: 1 }) 
             .select('slug title')
             .collation({ locale: "en_US", numericOrdering: true }) 
             .lean(),
@@ -235,7 +262,7 @@ router.get('/read/:slug/:chapterSlug', async (req, res) => {
                 manga_id: manga._id, 
                 chapter_index: { $lt: chapter.chapter_index } 
             })
-            .sort({ chapter_index: -1 }) // Ambil yang paling besar dari yang lebih kecil
+            .sort({ chapter_index: -1 })
             .select('slug title')
             .collation({ locale: "en_US", numericOrdering: true })
             .lean()
@@ -245,7 +272,7 @@ router.get('/read/:slug/:chapterSlug', async (req, res) => {
             chapter, 
             manga, 
             navigation: {
-                next: nextChap ? nextChap.slug : null, // Next logic button biasanya ke chapter lebih besar
+                next: nextChap ? nextChap.slug : null,
                 prev: prevChap ? prevChap.slug : null
             }
         });
